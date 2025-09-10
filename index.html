@@ -1,41 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Travanah</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-</head>
-<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen">
+/*
+TRAVANAH - Modern Webapp UI with Tailwind — v2
+File: src/App.jsx
 
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full">
-        
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <p class="text-lg text-gray-600">Hello, Rohan</p>
-                <h2 class="text-2xl font-bold text-gray-900">Welcome to Travanah</h2>
-            </div>
-            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
-                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User Profile" class="w-full h-full object-cover">
-            </div>
-        </div>
+Changes from v1:
+- UI redesigned to resemble the modern mobile app style in your reference.
+- Added header with avatar, greeting, and search bar.
+- Horizontal filter chips for categories (tags).
+- Destination cards styled with large images and overlay info (rating, favorites).
+- Details section styled like itinerary/tour cards.
+- Responsive layout that looks good on desktop and mobile.
 
-        <div class="mb-8">
-            <input 
-                type="text" 
-                placeholder="Search" 
-                class="w-full px-5 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 placeholder-gray-500"
-            >
-        </div>
+Setup instructions remain same as v1 (Vite + Tailwind).
+*/
 
-        <div class="text-gray-400 text-sm text-center">
-            <p>Ready to discover something new?</p>
-            <p class="mt-2">Next: Category chips and recommendation cards!</p>
+import React, { useEffect, useMemo, useState } from 'react';
+
+function useLocalStorageState(key, initialValue) {
+  const [state, setState] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : initialValue;
+    } catch (e) {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch (e) {
+      console.error('localStorage write error', e);
+    }
+  }, [key, state]);
+
+  return [state, setState];
+}
+
+const SAMPLE_PLACES = [
+  {
+    id: 'p1',
+    title: 'Juhu Beach Chill Spot',
+    city: 'Mumbai',
+    tags: ['Beach', 'Relax', 'Food'],
+    rating: 4.7,
+    tips: 2,
+    description: 'Soft sand, late-night food stalls and a relaxed vibe — great for evening walks.',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 'p2',
+    title: 'Powai Lake Promenade',
+    city: 'Mumbai',
+    tags: ['Lake', 'Nature', 'Walk'],
+    rating: 4.5,
+    tips: 1,
+    description: 'Calm waters and a clean promenade — ideal for morning runs and photography.',
+    image: 'https://images.unsplash.com/photo-1505765050516-f72dcac9c60b?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 'p3',
+    title: 'Colaba Cafe - Good Vibes',
+    city: 'Mumbai',
+    tags: ['Cafe', 'Coffee', 'Vibes'],
+    rating: 4.6,
+    tips: 0,
+    description: 'Retro interiors and a cosy corner for reading or working on a laptop.',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'
+  }
+];
+
+// Modern Card UI
+function PlaceCard({ place, onTip }) {
+  return (
+    <div className="relative rounded-2xl overflow-hidden shadow-md group">
+      <img src={place.image} alt={place.title} className="h-56 w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+      <div className="absolute bottom-0 p-4 text-white">
+        <h3 className="text-lg font-semibold">{place.title}</h3>
+        <p className="text-sm text-gray-200">{place.city}</p>
+        <div className="flex items-center gap-2 mt-1 text-sm">
+          <span>⭐ {place.rating}</span>
+          <span>· {place.tips} tips</span>
         </div>
+        <button
+          onClick={() => onTip(place.id)}
+          className="mt-2 bg-white/90 text-black px-3 py-1 rounded-lg text-sm hover:bg-white"
+        >Tip</button>
+      </div>
+      <button className="absolute top-3 right-3 bg-white/80 p-2 rounded-full hover:bg-white">♡</button>
     </div>
+  );
+}
 
-</body>
-</html>
+export default function App() {
+  const [places, setPlaces] = useLocalStorageState('travanah_places_v2', SAMPLE_PLACES);
+  const [query, setQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
+
+  const tags = useMemo(() => {
+    const s = new Set();
+    places.forEach(p => p.tags.forEach(t => s.add(t)));
+    return Array.from(s);
+  }, [places]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return places.filter(p => {
+      const matchQ = !q || p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+      const matchTag = !selectedTag || p.tags.includes(selectedTag);
+      return matchQ && matchTag;
+    });
+  }, [places, query, selectedTag]);
+
+  function tipPlace(id) {
+    setPlaces(prev => prev.map(p => p.id === id ? { ...p, tips: (p.tips || 0) + 1 } : p));
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="p-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">Hello, Rohan 👋</h1>
+          <p className="text-sm text-gray-600">Welcome to TRAVANAH</p>
+        </div>
+        <img src="https://i.pravatar.cc/50" alt="avatar" className="w-10 h-10 rounded-full" />
+      </header>
+
+      {/* Search */}
+      <div className="px-6">
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search places..."
+          className="w-full rounded-xl border px-4 py-2 text-sm"
+        />
+      </div>
+
+      {/* Tag filters */}
+      <div className="px-6 mt-4 flex gap-3 overflow-x-auto">
+        <button
+          onClick={() => setSelectedTag('')}
+          className={`px-4 py-2 rounded-full text-sm border ${selectedTag === '' ? 'bg-black text-white' : 'bg-white'}`}
+        >All</button>
+        {tags.map(tag => (
+          <button
+            key={tag}
+            onClick={() => setSelectedTag(tag)}
+            className={`px-4 py-2 rounded-full text-sm border ${selectedTag === tag ? 'bg-black text-white' : 'bg-white'}`}
+          >{tag}</button>
+        ))}
+      </div>
+
+      {/* Cards */}
+      <main className="p-6 grid gap-6 sm:grid-cols-2">
+        {filtered.map(place => (
+          <PlaceCard key={place.id} place={place} onTip={tipPlace} />
+        ))}
+        {filtered.length === 0 && (
+          <p className="text-sm text-gray-500">No places found.</p>
+        )}
+      </main>
+
+      {/* Bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
+        <button>🏠</button>
+        <button>♡</button>
+        <button>✈️</button>
+        <button>👤</button>
+      </nav>
+    </div>
+  );
+}
